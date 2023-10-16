@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+// use std::collections::HashMap;
+// use bevy::sprite::MaterialMesh2dBundle;
 use bevy::prelude::*;
 use bevy::core_pipeline::clear_color::ClearColorConfig;
-use bevy::sprite::MaterialMesh2dBundle;
 use bevy_rapier2d::prelude::*;
 
 
@@ -64,8 +64,8 @@ fn setup (
 ) {
    // TODO: Move animation loading into its own function and create idle animation that can be triggered when the player is not moving the character
 
-    let mut player_animations = AnimationNode { position: 0, states: HashMap::new()};
-    player_animations.states.insert(String::from("running"), AnimationState { path: String::from("Test Running Animation.png"), dimensions: Vec2::new(35.0, 75.0), start_frame: 0, current_frame: 0, end_frame: 4 });
+    let player_animations = AnimationNode { position: 0};
+    // player_animations.states.insert(String::from("running"), AnimationState { path: String::from("Test Running Animation.png"), dimensions: Vec2::new(35.0, 75.0), start_frame: 0, current_frame: 0, end_frame: 4 });
 
     let texture_handle = asset_server.load("Test Running Animation.png");
     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(35.0, 75.0), 4, 1, None, None);
@@ -89,7 +89,7 @@ fn setup (
         Collider::cuboid(17.5, 37.5),
         RigidBody::Dynamic,
         Restitution::coefficient(0.5),
-        ColliderMassProperties::Density(20.0),
+        ColliderMassProperties::Mass(150.0),
         GravityScale(30.0),
         Damping {
             linear_damping: 1.0,
@@ -130,12 +130,10 @@ fn animation (
 
 fn player_input (
     mut query: Query<(
-        &mut  Transform,
-        &mut TextureAtlasSprite
+        &mut TextureAtlasSprite,
     )>,
     mut velocities: Query<&mut Velocity>,
     input: Res<Input<KeyCode>>,
-    time: Res<Time>,
 ) {
 
     for mut vel in velocities.iter_mut() {
@@ -149,22 +147,13 @@ fn player_input (
         }
     }
 
-    for (mut controller, mut sprite) in &mut query {
-
-        // let mut translate = Vec2::ZERO;
-        // let speed = 500.0;
-        //
+    for (mut sprite) in &mut query {
         if input.pressed(KeyCode::D) {
-            sprite.flip_x = false;
-            //translate.x =  speed * time.delta_seconds();
+            sprite.0.flip_x = false;
         }
         if input.pressed(KeyCode::A) {
-            sprite.flip_x = true;
-            //translate.x =  -speed * time.delta_seconds();
+            sprite.0.flip_x = true;
         }
-
-        //controller.translation += Vec3::new(translate.x, translate.y, 0.0);
-
     }
 }
 
@@ -183,26 +172,26 @@ fn apply_forces (
 #[derive(Component)]
 pub struct AnimationNode {
     position: usize,
-    states: HashMap<String, AnimationState>,
+    // states: HashMap<String, AnimationState>,
 }
 
-#[derive(Component)]
-pub struct AnimationState {
-    path: String,
-    dimensions: Vec2,
-    start_frame: usize,
-    current_frame: usize,
-    end_frame: usize
-}
+// #[derive(Component)]
+// pub struct AnimationState {
+//     path: String,
+//     dimensions: Vec2,
+//     start_frame: usize,
+//     current_frame: usize,
+//     end_frame: usize
+// }
 
-impl Default for AnimationState {
-    fn default() -> AnimationState {
-        AnimationState { path: String::new(), dimensions: Vec2 { x: 0.0, y: 0.0 }, start_frame: 0, current_frame: 0, end_frame: 0 }
-    }
-}
+// impl Default for AnimationState {
+//     fn default() -> AnimationState {
+//         AnimationState { path: String::new(), dimensions: Vec2 { x: 0.0, y: 0.0 }, start_frame: 0, current_frame: 0, end_frame: 0 }
+//     }
+// }
 
-#[derive(Component)]
-pub struct Player {
-    health: usize,
-    speed: f32,
-}
+// #[derive(Component)]
+// pub struct Player {
+//     health: usize,
+//     speed: f32,
+// }
