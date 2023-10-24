@@ -1,8 +1,15 @@
+mod player_movement;
+mod spawner;
+
+use std::borrow::Cow;
 // use std::collections::HashMap;
-// use bevy::sprite::MaterialMesh2dBundle;
+use bevy::sprite::MaterialMesh2dBundle;
 use bevy::prelude::*;
 use bevy::core_pipeline::clear_color::ClearColorConfig;
+// use bevy::render::camera::ScalingMode;
 use bevy_rapier2d::prelude::*;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use crate::player_movement::Player;
 
 
 // TODO: Add collision and maybe physics?
@@ -22,10 +29,15 @@ fn main() {
             })
         )
         .add_plugins((
+            WorldInspectorPlugin::new(),
             RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0),
             RapierDebugRenderPlugin::default()))
+        .add_plugins((
+            player_movement::PlayerPlugin,
+            spawner::SpawnerPlugin,
+        ))
         .add_systems(Startup, (setup_camera, setup_physics, setup))
-        .add_systems(Update, (animation, bevy::window::close_on_esc, player_input, apply_forces))
+        .add_systems(Update, (animation, bevy::window::close_on_esc))
         .run()
 }
 
@@ -35,6 +47,15 @@ fn setup_camera (mut commands: Commands) {
             clear_color: ClearColorConfig::Custom(Color::rgb(0.2, 0.2, 0.2)),
             ..default()
         },
+        // projection: OrthographicProjection {
+        //     scaling_mode: ScalingMode::Fixed
+        //     {
+        //         width: 1000.,
+        //         height: 1000.,
+        //     },
+        //
+        //     ..default()
+        // },
         ..default()
     });
 }
@@ -44,18 +65,45 @@ fn setup_physics (
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>
 ) {
-    commands.spawn((
-        Collider::cuboid(640.0, 25.0),
+    let entity_id = commands.spawn((
+        Collider::cuboid(1.0, 0.5),
         RigidBody::Fixed,
-        TransformBundle::from(Transform::from_xyz(0.0, -360.0, 0.0)),
-        // MaterialMesh2dBundle {
-        //     mesh: meshes.add(shape::Box::default().into()).into(),
-        //     material: materials.add(ColorMaterial::from(Color::rgb(1.0,1.0,1.0))),
-        //     transform: Transform::from_translation(Vec3::new(0.0, -360.0, 0.0)).with_scale(Vec3::new(640.0, 50.0, 1.0)),
-        //     ..default()
-        // }
-       ));
+        // TransformBundle::from(Transform::from_xyz(0.0, -300.0, 0.0)),
+        MaterialMesh2dBundle {
+            mesh: meshes.add(shape::Box::default().into()).into(),
+            material: materials.add(ColorMaterial::from(Color::rgb(1.0,1.0,1.0))),
+            transform: Transform::from_translation(Vec3::new(0.0, -330.0, 0.0))
+            .with_scale(Vec3::new(660.0, 25.0, 1.0)),
+            ..default()
+        }
+       )).id();
+
+       println!("Id: {:?}", entity_id);
 }
+
+// fn animation_setup (
+//     mut commands: Commands,
+//     asset_server: Res<AssetServer>,
+//     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
+// ) {
+//     let player_animations = AnimationNode { position: 0};
+//     let swordfish_texture_handle = asset_server.load_folder("sword_fish");
+//     let swordfish_texture_handle = swordfish_texture_handle.unwrap();
+//
+//     let mut texture_atlas_handles: Vec<Handle<TextureAtlas>> = Vec::new();
+//
+//     for texture in swordfish_texture_handle
+//     {
+//         let typed_texture = texture.typed::<Image>();
+//         let texture_atlas = TextureAtlas::from_grid(typed_texture, Vec2::new(48., 48.), 4, 1, None, None);
+//         let atlas_handle = texture_atlases.add(texture_atlas);
+//         texture_atlas_handles.push(atlas_handle);
+//     }
+//
+//     let current_state = SwordFishStates::Walk;
+//     let current_texture = texture_atlas_handles[current_state as usize].clone();
+//     let texture_atlas_sprite = TextureAtlasSprite::new(1);
+// }
 
 fn setup (
     mut commands: Commands,
@@ -78,15 +126,17 @@ fn setup (
         texture_atlas_handles.push(atlas_handle);
     }
 
-    let current_texture = texture_atlas_handles[SwordFishStates::Walk as usize].clone();
+    let current_texture = texture_atlas_handles[4].clone();
     let texture_atlas_sprite = TextureAtlasSprite::new(1);
+
+    //println!("{:?}", texture_atlases);
 
     commands.spawn((
         SpriteSheetBundle {
-            // transform: Transform::from_scale(Vec3::splat(1.0)),
+            // transform: Transform::from_scale(Vec3::splat(2.0)),
             transform: Transform {
                 scale: Vec3::splat(2.0),
-                translation: Vec3::new(0.0, 0.0, 0.0),
+                translation: Vec3::new(0.0, 0.0, 2.0),
                 ..default()
             },
             texture_atlas: current_texture,
@@ -98,27 +148,32 @@ fn setup (
         ColliderMassProperties::Mass(1000.0),
         GravityScale(5.0),
         Damping {
-            linear_damping: 1.0,
+            linear_damping: 1.5,
             angular_damping: 1.0
         },
         Friction {
-            coefficient: 0.1,
+            coefficient: 0.2,
             ..default()
         },
+        Name::new(Cow::from("Character")),
         Velocity::default(),
         LockedAxes::ROTATION_LOCKED,
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
-        player_animations
+        player_animations,
+        Player {
+            health: 5,
+            speed: 1000.
+        }
     ));
 }
-
-enum SwordFishStates {
-    Attack = 0,
-    Death = 1,
-    Hurt = 2,
-    Idle = 3,
-    Walk = 4
-}
+// #[derive(Resource)]
+// enum SwordFishStates {
+//     Attack,
+//     Death ,
+//     Hurt ,
+//     Idle,
+//     Walk,
+// }
 
 #[derive(Component, Deref, DerefMut)]
 struct AnimationTimer(Timer);
@@ -146,46 +201,17 @@ fn animation (
     }
 }
 
-fn player_input (
-    mut query: Query<(
-        &mut TextureAtlasSprite,
-    )>,
-    mut velocities: Query<&mut Velocity>,
-    input: Res<Input<KeyCode>>,
-) {
-
-    for mut vel in velocities.iter_mut() {
-        if input.just_pressed(KeyCode::Space) {
-            vel.linvel.y = 300.0;
-        }
-        if input.pressed(KeyCode::D) {
-            vel.linvel.x = 300.0;
-        } else if input.pressed(KeyCode::A) {
-            vel.linvel.x = -300.0;
-        }
-    }
-
-    for (mut sprite) in &mut query {
-        if input.pressed(KeyCode::D) {
-            sprite.0.flip_x = false;
-        }
-        if input.pressed(KeyCode::A) {
-            sprite.0.flip_x = true;
-        }
-    }
-}
-
-fn apply_forces (
-    mut ext_impulses: Query<&mut ExternalImpulse>,
-    input: Res<Input<KeyCode>>
-) {
-    for mut ext_impulse in ext_impulses.iter_mut() {
-        if input.just_pressed(KeyCode::Space) {
-            println!("Jump!");
-        }
-            ext_impulse.impulse = Vec2::new(1.0, 1000.0);
-    }
-}
+// fn apply_forces (
+//     mut ext_impulses: Query<&mut ExternalImpulse>,
+//     input: Res<Input<KeyCode>>
+// ) {
+//     for mut ext_impulse in ext_impulses.iter_mut() {
+//         if input.pressed(KeyCode::Space) {
+//             println!("Jump!");
+//         }
+//             ext_impulse.impulse = Vec2::new(1.0, 1000.0);
+//     }
+// }
 
 #[derive(Component)]
 pub struct AnimationNode {
@@ -206,10 +232,4 @@ pub struct AnimationNode {
 //     fn default() -> AnimationState {
 //         AnimationState { path: String::new(), dimensions: Vec2 { x: 0.0, y: 0.0 }, start_frame: 0, current_frame: 0, end_frame: 0 }
 //     }
-// }
-
-// #[derive(Component)]
-// pub struct Player {
-//     health: usize,
-//     speed: f32,
 // }
