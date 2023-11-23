@@ -10,7 +10,7 @@ pub struct SpawnerPlugin;
 impl Plugin for SpawnerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, spawner_setup)
-            .add_systems(Update, spawn_pickup)
+            .add_systems(Update, (spawn_pickup, display_events))
             .insert_resource(SpawnTimer{timer: Timer::from_seconds(2.5, TimerMode::Once)});
 
     }
@@ -64,9 +64,24 @@ fn spawn_pickup (
                 RigidBody::Dynamic,
                 Sensor,
                 Collider::cuboid(24., 24.),
+                ActiveEvents::COLLISION_EVENTS,
             ));
     }
 }
+
+fn display_events(
+    mut collision_events: EventReader<CollisionEvent>,
+    mut contact_force_events: EventReader<ContactForceEvent>
+) {
+    for collision_event in collision_events.iter() {
+        println!("Collision event: {:?}", collision_event);
+    }
+    for collision_event in contact_force_events.iter() {
+        println!("Collision event: {:?}", collision_event);
+    }
+
+}
+
 #[derive(Component)]
 pub struct Spawner {
     pub health: u16,
