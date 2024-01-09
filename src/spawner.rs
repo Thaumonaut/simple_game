@@ -1,6 +1,6 @@
-use std::time::Duration;
-use bevy::prelude::*;
-use bevy_rapier2d::{prelude::*, na::Dynamic};
+use std::{time::Duration, borrow::Cow};
+use bevy::{prelude::*, sprite::collide_aabb::Collision, ecs::entity::Entities};
+use bevy_rapier2d::{prelude::*, na::Dynamic, rapier::geometry::CollisionEventFlags};
 use bevy::sprite::MaterialMesh2dBundle;
 use rand::Rng;
 use crate::player_movement::Player;
@@ -65,21 +65,48 @@ fn spawn_pickup (
                 Sensor,
                 Collider::cuboid(24., 24.),
                 ActiveEvents::COLLISION_EVENTS,
+                Name::new(Cow::from("Squid")),
             ));
     }
 }
 
+#[derive(Debug)]
+struct CollidingEntityPair{
+    primary: Entity,
+    secondary: Entity
+}
+
 fn display_events(
     mut collision_events: EventReader<CollisionEvent>,
-    mut contact_force_events: EventReader<ContactForceEvent>
+    query: Query<(Entity, &Name), With<Player>>,
+    mut commands: Commands,
+    // mut contact_force_events: EventReader<ContactForceEvent>
 ) {
     for collision_event in collision_events.iter() {
-        println!("Collision event: {:?}", collision_event);
-    }
-    for collision_event in contact_force_events.iter() {
-        println!("Collision event: {:?}", collision_event);
-    }
+        if let CollisionEvent::Started(ent1, ent2, CollisionEventFlags::SENSOR) = collision_event {
 
+            println!("Collision");
+
+            let colliding_entities = {
+                let entities = [*ent1, *ent2];
+                CollidingEntityPair {
+                    primary: entities[1],
+                    secondary: entities[0],
+                }
+            };
+
+            for (e, name) in query.iter() {
+                if query.get(colliding_entities.primary).is_ok() {
+                    dbg!(name);
+                }
+            }
+            
+            if query.get(colliding_entities.secondary).is_ok() {
+                commands.entity(colliding_entities.primary).despawn();
+                dbg!(colliding_entities.secondary);
+            }
+        }
+    }
 }
 
 #[derive(Component)]

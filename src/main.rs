@@ -77,8 +77,6 @@ fn setup_physics (
             ..default()
         }
        )).id();
-
-       println!("Id: {:?}", entity_id);
 }
 
 // fn animation_setup (
